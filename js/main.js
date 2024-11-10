@@ -1,5 +1,5 @@
 document.addEventListener('DOMContentLoaded', () => {
-    const apiKey = '1LcqqdnWmI8uZ06a3MzienPx1mHRzJ1ndicRaeX8';
+    const apiKey = 'Your API key here';
 
     // Load data from localStorage when the page loads
     loadStoredData();
@@ -150,7 +150,7 @@ function displayAsteroidData(asteroids) {
 
 // Fetch the details of a specific asteroid
 async function fetchAsteroidDetails(asteroidId) {
-    const apiKey = '1LcqqdnWmI8uZ06a3MzienPx1mHRzJ1ndicRaeX8';
+    const apiKey = 'Your API key here';
     const apiUrl = `https://api.nasa.gov/neo/rest/v1/neo/${asteroidId}?api_key=${apiKey}`;
 
     try {
