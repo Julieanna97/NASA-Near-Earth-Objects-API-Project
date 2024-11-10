@@ -1,0 +1,239 @@
+/* General Layout */
+body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Arial', sans-serif;
+    background: #000 url('../img/asteroid.png') no-repeat center center fixed;
+    background-size: cover;
+    color: white;
+}
+
+/* Overall Container Box for all sections */
+#app {
+    background-color: rgba(0, 0, 0, 0.7);
+    border-radius: 15px;
+    padding: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.6);
+    margin: 20px;
+    text-align: center; /* Centering the content of the app */
+}
+
+/* Header Section */
+h1 {
+    font-size: 28px;
+    margin-bottom: 20px;
+}
+
+/* Styling for the error container */
+#error-container {
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+/* Form Section Styling */
+form {
+    background-color: rgba(0, 0, 0, 0.8);
+    border-radius: 10px;
+    padding: 20px;
+    margin: 15px 0;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+}
+
+label {
+    display: block;
+    margin: 10px 0 5px;
+    font-size: 16px;
+}
+
+input {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 10px;
+    font-size: 14px;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+button {
+    background-color: #0077B6;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    transition: background-color 0.3s ease;
+}
+
+button:hover {
+    background-color: #005f8c;
+}
+
+/* Neo Container - Grid Layout */
+#neo-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 20px;
+    justify-items: center; /* Ensure each card is centered */
+    margin-top: 20px;
+}
+
+/* Adjust to 3 items per row on medium screens */
+@media (max-width: 1200px) {
+    #neo-container {
+        grid-template-columns: repeat(3, 1fr); /* 3 items per row on medium screens */
+    }
+}
+
+/* Adjust to 2 items per row on smaller screens */
+@media (max-width: 800px) {
+    #neo-container {
+        grid-template-columns: repeat(2, 1fr); /* 2 items per row on smaller screens */
+    }
+}
+
+/* Individual Card Styling */
+.neo-card {
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 2px solid #0077B6; /* Border color for distinct box appearance */
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+    width: 100%;
+    max-width: 220px; /* Ensure cards have a defined width */
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    justify-content: center; /* Vertically center the content */
+    align-items: center; /* Horizontally center the content */
+}
+
+.neo-card:hover {
+    transform: scale(1.05); /* Slightly enlarge on hover */
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.8); /* Add shadow effect on hover */
+}
+
+.neo-card h2 {
+    font-size: 18px;
+    margin: 10px 0;
+    color: #fff;
+}
+
+.neo-card p {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #ccc;
+}
+
+.details-link {
+    color: #0077B6;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.details-link:hover {
+    text-decoration: underline;
+}
+
+/* Styling for asteroid details section */
+#asteroid-details {
+    margin-top: 20px;
+}
+
+.back-button {
+    background-color: #0077B6;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.back-button:hover {
+    background-color: #005f8c;
+}
+
+/* Container for search result boxes */
+#search-results-container {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* Default: 4 boxes per row */
+    gap: 20px; /* Space between boxes */
+    justify-items: center; /* Center each box horizontally */
+    margin-top: 20px;
+}
+
+/* Large Desktop (1200px and above) */
+@media (min-width: 1200px) {
+    #search-results-container {
+        grid-template-columns: repeat(4, 1fr); /* 4 boxes per row for large desktops */
+    }
+}
+
+/* Small Desktop (992px to 1199px) */
+@media (min-width: 992px) and (max-width: 1199px) {
+    #search-results-container {
+        grid-template-columns: repeat(3, 1fr); /* 3 boxes per row for small desktops */
+    }
+}
+
+/* Tablet (768px to 991px) */
+@media (min-width: 768px) and (max-width: 991px) {
+    #search-results-container {
+        grid-template-columns: repeat(2, 1fr); /* 2 boxes per row for tablets */
+    }
+}
+
+/* Mobile (below 768px) */
+@media (max-width: 767px) {
+    #search-results-container {
+        grid-template-columns: 1fr; /* 1 box per row for mobile */
+    }
+}
+
+/* Styling for each search result box */
+.search-result-box {
+    background-color: rgba(0, 0, 0, 0.8);
+    border: 2px solid #0077B6;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.7);
+    width: 100%;
+    max-width: 220px;
+    text-align: center;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.search-result-box:hover {
+    transform: scale(1.05); /* Slightly enlarge the box on hover */
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.8); /* Add shadow effect on hover */
+}
+
+.search-result-box h2 {
+    font-size: 18px;
+    margin: 10px 0;
+    color: #fff;
+}
+
+.search-result-box p {
+    font-size: 14px;
+    margin: 5px 0;
+    color: #ccc;
+}
+
+.details-link {
+    color: #0077B6;
+    text-decoration: none;
+    font-weight: bold;
+}
+
+.details-link:hover {
+    text-decoration: underline;
+}
+
+
+

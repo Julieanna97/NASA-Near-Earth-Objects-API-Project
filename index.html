@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NASA NEOs</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <h1>NASA Near Earth Objects</h1>
+        
+        <!-- Form to filter asteroids based on date range -->
+        <form id="date-form">
+            <label for="start-date">Start Date:</label>
+            <input type="date" id="start-date" name="start-date" required>
+            <label for="end-date">End Date:</label>
+            <input type="date" id="end-date" name="end-date" required>
+            <button type="submit">Fetch Asteroids</button>
+        </form>
+
+        <!-- Form to look up an asteroid by its ID -->
+        <form id="id-form">
+            <label for="asteroid-id">Asteroid ID:</label>
+            <input type="text" id="asteroid-id" name="asteroid-id" required>
+            <button type="submit">Lookup Asteroid</button>
+        </form>
+
+        <!-- Button to clear history from localStorage -->
+        <button id="clear-history">Clear History</button>
+
+        <!-- Containers for displaying error messages and asteroid data -->
+        <div id="error-container"></div>
+        <div id="neo-container"></div>
+        <div id="asteroid-details"></div>
+        
+    </div>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
