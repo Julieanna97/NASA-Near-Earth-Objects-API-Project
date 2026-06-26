@@ -1,222 +1,452 @@
-document.addEventListener('DOMContentLoaded', () => {
-    const apiKey = 'Your API key here';
+const NASA_PROXY_BASE = "/api/nasa";
+const HISTORY_KEY = "orbitWatchAsteroidHistory";
 
-    // Load data from localStorage when the page loads
-    loadStoredData();
+const state = {
+  asteroids: [],
+  currentTitle: "Ready to scan",
+};
 
-    // Event listener for the date-based form submission
-    document.getElementById('date-form').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const startDate = document.getElementById('start-date').value;
-        const endDate = document.getElementById('end-date').value;
+const elements = {};
 
-        if (isDateRangeValid(startDate, endDate)) {
-            const apiUrl = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${startDate}&end_date=${endDate}&api_key=${apiKey}`;
-            await fetchAsteroidList(apiUrl);
-            clearError();
-        } else {
-            displayError('The date range must be within 7 days.');
-        }
-    });
-
-    // Event listener for the ID-based form submission
-    document.getElementById('id-form').addEventListener('submit', async (event) => {
-        event.preventDefault();
-        const asteroidId = document.getElementById('asteroid-id').value;
-        if (asteroidId) {
-            const apiUrl = `https://api.nasa.gov/neo/rest/v1/neo/${asteroidId}?api_key=${apiKey}`;
-            await lookupAsteroidById(apiUrl);
-            clearError();
-        } else {
-            displayError('Please enter a valid asteroid ID.');
-        }
-    });
-
-    // Event listener for clearing history from localStorage
-    document.getElementById('clear-history').addEventListener('click', () => {
-        localStorage.removeItem('asteroidHistory');
-        document.getElementById('neo-container').innerHTML = '';
-        document.getElementById('asteroid-details').innerHTML = '';
-    });
-
-    // Event listener for handling the back button to return to the list of asteroids
-    document.addEventListener('click', (event) => {
-        if (event.target.matches('.back-button')) {
-            goBackToList();
-        }
-    });
+document.addEventListener("DOMContentLoaded", () => {
+  cacheElements();
+  setDefaultDates();
+  loadStoredData();
+  bindEvents();
 });
 
-// Load stored data from localStorage
-function loadStoredData() {
-    const storedData = JSON.parse(localStorage.getItem('asteroidHistory'));
-    if (storedData) {
-        displayAsteroidData(storedData);
-    }
+function cacheElements() {
+  elements.dateForm = document.getElementById("date-form");
+  elements.idForm = document.getElementById("id-form");
+  elements.startDate = document.getElementById("start-date");
+  elements.endDate = document.getElementById("end-date");
+  elements.asteroidId = document.getElementById("asteroid-id");
+  elements.todayButton = document.getElementById("today-button");
+  elements.clearHistory = document.getElementById("clear-history");
+  elements.error = document.getElementById("error-container");
+  elements.loading = document.getElementById("loading-container");
+  elements.empty = document.getElementById("empty-state");
+  elements.neoContainer = document.getElementById("neo-container");
+  elements.details = document.getElementById("asteroid-details");
+  elements.resultsTitle = document.getElementById("results-title");
+  elements.statusPill = document.getElementById("status-pill");
+  elements.metricTotal = document.getElementById("metric-total");
+  elements.metricHazardous = document.getElementById("metric-hazardous");
+  elements.metricClosest = document.getElementById("metric-closest");
+  elements.metricFastest = document.getElementById("metric-fastest");
+  elements.heroTotal = document.getElementById("hero-total");
+  elements.heroHazardous = document.getElementById("hero-hazardous");
 }
 
-// Check if the start and end dates are within 7 days
-function isDateRangeValid(startDate, endDate) {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const diffInMs = end - start;
-    const diffInDays = diffInMs / (1000 * 3600 * 24);
-    return diffInDays >= 0 && diffInDays <= 7;
+function bindEvents() {
+  elements.dateForm.addEventListener("submit", handleDateSearch);
+  elements.idForm.addEventListener("submit", handleIdSearch);
+  elements.todayButton.addEventListener("click", loadToday);
+  elements.clearHistory.addEventListener("click", clearHistory);
+  elements.saveApiKey.addEventListener("click", saveApiKey);
+  elements.clearApiKey.addEventListener("click", clearApiKey);
+
+  document.querySelectorAll("[data-range]").forEach((button) => {
+    button.addEventListener("click", () => setDateRange(button.dataset.range));
+  });
 }
 
-// Fetch the list of asteroids within the specified date range
-async function fetchAsteroidList(url) {
+function setDefaultDates() {
+  const today = new Date();
+  elements.startDate.value = formatDate(today);
+  elements.endDate.value = formatDate(today);
+}
+
+function setDateRange(range) {
+  const start = new Date();
+  const end = new Date();
+
+  if (range === "week") {
+    end.setDate(start.getDate() + 7);
+  }
+
+  elements.startDate.value = formatDate(start);
+  elements.endDate.value = formatDate(end);
+}
+
+function loadToday() {
+  setDateRange("today");
+  elements.dateForm.requestSubmit();
+}
+
+async function handleDateSearch(event) {
+  event.preventDefault();
+
+  const startDate = elements.startDate.value;
+  const endDate = elements.endDate.value;
+
+  if (!isDateRangeValid(startDate, endDate)) {
+    showError("Choose a date range between 1 and 7 days. The end date cannot be before the start date.");
+    return;
+  }
+
+  const url = `${NASA_PROXY_BASE}?type=feed&start_date=${encodeURIComponent(
+        startDate
+    )}&end_date=${encodeURIComponent(endDate)}`;
+
+  try {
+    setLoading(true, "Scanning date range");
+    clearError();
+
+    const data = await fetchJson(url);
+    const asteroids = Object.values(data.near_earth_objects || {}).flat();
+
+    state.asteroids = sortAsteroidsByDate(asteroids);
+    state.currentTitle = `${formatReadableDate(startDate)} → ${formatReadableDate(endDate)}`;
+
+    localStorage.setItem(
+      HISTORY_KEY,
+      JSON.stringify({
+        title: state.currentTitle,
+        asteroids: state.asteroids,
+      })
+    );
+
+    renderAsteroidList(state.asteroids, state.currentTitle);
+  } catch (error) {
+    showError(`NASA request failed: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function handleIdSearch(event) {
+  event.preventDefault();
+
+  const asteroidId = elements.asteroidId.value.trim();
+
+  if (!asteroidId) {
+    showError("Enter an asteroid ID first.");
+    return;
+  }
+
+  try {
+    setLoading(true, "Looking up asteroid");
+    clearError();
+
+    const neo = await fetchAsteroidById(asteroidId);
+    renderAsteroidDetails(neo);
+    updateTitle(`Asteroid ID ${asteroidId}`);
+    updateStatus("Single object");
+  } catch (error) {
+    showError(`Could not find that asteroid: ${error.message}`);
+  } finally {
+    setLoading(false);
+  }
+}
+
+async function fetchAsteroidById(asteroidId) {
+  const url = `${NASA_PROXY_BASE}?type=neo&id=${encodeURIComponent(
+    asteroidId
+  )}`;
+
+  return fetchJson(url);
+}
+
+async function fetchJson(url) {
+  const response = await fetch(url);
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+
     try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        const asteroids = Object.values(data.near_earth_objects).flat();
-        localStorage.setItem('asteroidHistory', JSON.stringify(asteroids));
-        displayAsteroidData(asteroids);
-    } catch (error) {
-        displayError(`Failed to fetch data: ${error.message}`);
+      const data = await response.json();
+      message = data.error?.message || data.msg || message;
+    } catch {
+      // Keep fallback message.
     }
+
+    throw new Error(message);
+  }
+
+  return response.json();
 }
 
-// Lookup a specific asteroid by its ID
-async function lookupAsteroidById(url) {
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        displayAsteroidDetails(data);
-    } catch (error) {
-        displayError(`Failed to fetch data: ${error.message}`);
-    }
-}
+function renderAsteroidList(asteroids, title) {
+  elements.details.style.display = "none";
+  elements.details.innerHTML = "";
+  elements.neoContainer.innerHTML = "";
+  elements.neoContainer.style.display = "grid";
+  elements.empty.style.display = asteroids.length ? "none" : "grid";
 
-// Function to display the asteroid data on the webpage
-function displayAsteroidData(asteroids) {
-    const neoContainer = document.getElementById('neo-container');
-    const detailsContainer = document.getElementById('asteroid-details');
+  updateTitle(title);
+  updateStatus(`${asteroids.length} loaded`);
+  updateMetrics(asteroids);
 
-    // Hide the details container when displaying the list
-    detailsContainer.innerHTML = '';
-    detailsContainer.style.display = 'none';
+  asteroids.forEach((neo) => {
+    const approach = getPrimaryApproach(neo);
+    const card = document.createElement("article");
+    card.className = "neo-card";
 
-    // Show the asteroid list
-    neoContainer.style.display = 'block';
-    neoContainer.innerHTML = '';
+    card.innerHTML = `
+      <div class="card-topline">
+        <div>
+          <h3>${escapeHtml(neo.name)}</h3>
+          <p class="neo-id">ID ${escapeHtml(neo.id)}</p>
+        </div>
+        <span class="badge ${neo.is_potentially_hazardous_asteroid ? "badge-hazard" : "badge-safe"}">
+          ${neo.is_potentially_hazardous_asteroid ? "Hazard" : "Safe"}
+        </span>
+      </div>
 
-    asteroids.forEach(neo => {
-        const neoCard = document.createElement('div');
-        neoCard.classList.add('neo-card');
+      <div class="card-stats">
+        <div class="card-stat">
+          <span>Diameter</span>
+          <strong>${formatDiameter(neo)}</strong>
+        </div>
+        <div class="card-stat">
+          <span>Approach</span>
+          <strong>${approach ? formatReadableDate(approach.close_approach_date) : "—"}</strong>
+        </div>
+        <div class="card-stat">
+          <span>Miss distance</span>
+          <strong>${approach ? formatNumber(approach.miss_distance.kilometers, 0) + " km" : "—"}</strong>
+        </div>
+        <div class="card-stat">
+          <span>Velocity</span>
+          <strong>${approach ? formatNumber(approach.relative_velocity.kilometers_per_hour, 0) + " km/h" : "—"}</strong>
+        </div>
+      </div>
 
-        const neoName = document.createElement('h2');
-        neoName.textContent = neo.name;
-
-        const neoId = document.createElement('p');
-        neoId.textContent = `Asteroid ID: ${neo.id}`;
-
-        const neoDetails = document.createElement('p');
-        neoDetails.textContent = `Diameter (meters): ${neo.estimated_diameter.meters.estimated_diameter_min.toFixed(2)} - ${neo.estimated_diameter.meters.estimated_diameter_max.toFixed(2)}`;
-
-        const neoHazardous = document.createElement('p');
-        neoHazardous.textContent = `Potentially Hazardous: ${neo.is_potentially_hazardous_asteroid ? 'Yes' : 'No'}`;
-
-        const detailsLink = document.createElement('a');
-        detailsLink.href = `#`;
-        detailsLink.classList.add('details-link');
-        detailsLink.dataset.id = neo.id;
-        detailsLink.textContent = "View Details";
-
-        neoCard.appendChild(neoName);
-        neoCard.appendChild(neoId);
-        neoCard.appendChild(neoDetails);
-        neoCard.appendChild(neoHazardous);
-        neoCard.appendChild(detailsLink);
-
-        neoContainer.appendChild(neoCard);
-    });
-
-    // Add event listeners to the details links
-    document.querySelectorAll('.details-link').forEach(link => {
-        link.addEventListener('click', async (event) => {
-            event.preventDefault();
-            const asteroidId = event.target.dataset.id;
-            await fetchAsteroidDetails(asteroidId);
-        });
-    });
-}
-
-// Fetch the details of a specific asteroid
-async function fetchAsteroidDetails(asteroidId) {
-    const apiKey = 'Your API key here';
-    const apiUrl = `https://api.nasa.gov/neo/rest/v1/neo/${asteroidId}?api_key=${apiKey}`;
-
-    try {
-        const response = await fetch(apiUrl);
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const data = await response.json();
-        displayAsteroidDetails(data);
-    } catch (error) {
-        displayError(`Failed to fetch data: ${error.message}`);
-    }
-}
-
-// Function to display detailed information about the asteroid
-function displayAsteroidDetails(neo) {
-    const neoContainer = document.getElementById('neo-container');
-    const detailsContainer = document.getElementById('asteroid-details');
-
-    // Hide the asteroid list and show the details container
-    neoContainer.style.display = 'none';
-    detailsContainer.style.display = 'block';
-
-    const details = `
-        <h2>${neo.name}</h2>
-        <p>ID: ${neo.id}</p>
-        <p>Absolute Magnitude: ${neo.absolute_magnitude_h}</p>
-        <p>Estimated Diameter (meters): ${neo.estimated_diameter.meters.estimated_diameter_min.toFixed(2)} - ${neo.estimated_diameter.meters.estimated_diameter_max.toFixed(2)}</p>
-        <p>Potentially Hazardous: ${neo.is_potentially_hazardous_asteroid ? 'Yes' : 'No'}</p>
-        <p>First Observed: ${neo.orbital_data.first_observation_date}</p>
-        <p>Last Observed: ${neo.orbital_data.last_observation_date}</p>
-        <p>Orbital Period (days): ${neo.orbital_data.orbital_period}</p>
-        <p>Close Approach Data:</p>
-        <ul>
-            ${neo.close_approach_data.map(approach => `
-                <li>
-                    Date: ${approach.close_approach_date}
-                    - Miss Distance (km): ${parseFloat(approach.miss_distance.kilometers).toFixed(2)}
-                    - Velocity (km/h): ${parseFloat(approach.relative_velocity.kilometers_per_hour).toFixed(2)}
-                </li>`).join('')}
-        </ul>
-        <button class="back-button">Back to List</button>
+      <button type="button" class="details-button">View details</button>
     `;
 
-    detailsContainer.innerHTML = details;
+    card.querySelector(".details-button").addEventListener("click", async () => {
+      try {
+        setLoading(true, "Loading details");
+        const detailedNeo = await fetchAsteroidById(neo.id);
+        renderAsteroidDetails(detailedNeo);
+      } catch (error) {
+        showError(`Could not load asteroid details: ${error.message}`);
+      } finally {
+        setLoading(false);
+      }
+    });
+
+    elements.neoContainer.appendChild(card);
+  });
 }
 
-// Display error message
-function displayError(message) {
-    const errorElement = document.getElementById('error-container');
-    errorElement.textContent = message;
-    errorElement.style.display = 'block';
-}
+function renderAsteroidDetails(neo) {
+  elements.neoContainer.style.display = "none";
+  elements.empty.style.display = "none";
+  elements.details.style.display = "block";
 
-// Clear the error message
-function clearError() {
-    const errorElement = document.getElementById('error-container'); // Correct the element ID here
-    if (errorElement) {
-        errorElement.style.display = 'none';
+  updateMetrics([neo]);
+
+  const approaches = (neo.close_approach_data || []).slice(0, 8);
+
+  elements.details.innerHTML = `
+    <div class="details-header">
+      <div>
+        <p class="eyebrow">Asteroid profile</p>
+        <h2>${escapeHtml(neo.name)}</h2>
+        <p>ID ${escapeHtml(neo.id)} · NASA JPL Small-Body Database link available from API data.</p>
+      </div>
+      <span class="badge ${neo.is_potentially_hazardous_asteroid ? "badge-hazard" : "badge-safe"}">
+        ${neo.is_potentially_hazardous_asteroid ? "Potentially hazardous" : "Not hazardous"}
+      </span>
+    </div>
+
+    <div class="details-grid">
+      <div class="detail-tile">
+        <span>Absolute magnitude</span>
+        <strong>${escapeHtml(neo.absolute_magnitude_h)}</strong>
+      </div>
+      <div class="detail-tile">
+        <span>Estimated diameter</span>
+        <strong>${formatDiameter(neo)}</strong>
+      </div>
+      <div class="detail-tile">
+        <span>Orbiting body</span>
+        <strong>${escapeHtml(getPrimaryApproach(neo)?.orbiting_body || "Earth")}</strong>
+      </div>
+      <div class="detail-tile">
+        <span>First observed</span>
+        <strong>${escapeHtml(neo.orbital_data?.first_observation_date || "—")}</strong>
+      </div>
+      <div class="detail-tile">
+        <span>Last observed</span>
+        <strong>${escapeHtml(neo.orbital_data?.last_observation_date || "—")}</strong>
+      </div>
+      <div class="detail-tile">
+        <span>Orbital period</span>
+        <strong>${neo.orbital_data?.orbital_period ? formatNumber(neo.orbital_data.orbital_period, 1) + " days" : "—"}</strong>
+      </div>
+    </div>
+
+    <h3>Close approach data</h3>
+    <ul class="approach-list">
+      ${approaches.length ? approaches.map((approach) => `
+        <li>
+          <strong>${escapeHtml(approach.close_approach_date)}</strong>
+          <span>Miss distance: ${formatNumber(approach.miss_distance.kilometers, 0)} km</span>
+          <span>Velocity: ${formatNumber(approach.relative_velocity.kilometers_per_hour, 0)} km/h</span>
+        </li>
+      `).join("") : "<li>No close approach data available.</li>"}
+    </ul>
+
+    <button type="button" class="back-button" id="back-to-results">
+      Back to results
+    </button>
+  `;
+
+  document.getElementById("back-to-results").addEventListener("click", () => {
+    if (state.asteroids.length) {
+      renderAsteroidList(state.asteroids, state.currentTitle);
     } else {
-        console.warn('Error element not found.');
+      elements.details.style.display = "none";
+      elements.empty.style.display = "grid";
+      updateMetrics([]);
     }
+  });
 }
 
-// Go back to the list of asteroids
-function goBackToList() {
-    document.getElementById('neo-container').style.display = 'block';
-    document.getElementById('asteroid-details').style.display = 'none';
+function updateMetrics(asteroids) {
+  const total = asteroids.length;
+  const hazardous = asteroids.filter((neo) => neo.is_potentially_hazardous_asteroid).length;
+  const approaches = asteroids.map(getPrimaryApproach).filter(Boolean);
+
+  const closest = approaches.reduce((min, approach) => {
+    const distance = Number(approach.miss_distance.kilometers);
+    return distance < min ? distance : min;
+  }, Infinity);
+
+  const fastest = approaches.reduce((max, approach) => {
+    const velocity = Number(approach.relative_velocity.kilometers_per_hour);
+    return velocity > max ? velocity : max;
+  }, 0);
+
+  elements.metricTotal.textContent = total || "—";
+  elements.metricHazardous.textContent = total ? hazardous : "—";
+  elements.metricClosest.textContent = Number.isFinite(closest) ? `${formatNumber(closest, 0)} km` : "—";
+  elements.metricFastest.textContent = fastest ? `${formatNumber(fastest, 0)} km/h` : "—";
+  elements.heroTotal.textContent = total;
+  elements.heroHazardous.textContent = hazardous;
+}
+
+function getPrimaryApproach(neo) {
+  return neo.close_approach_data?.[0] || null;
+}
+
+function sortAsteroidsByDate(asteroids) {
+  return [...asteroids].sort((a, b) => {
+    const approachA = getPrimaryApproach(a)?.close_approach_date || "9999-12-31";
+    const approachB = getPrimaryApproach(b)?.close_approach_date || "9999-12-31";
+    return approachA.localeCompare(approachB);
+  });
+}
+
+function isDateRangeValid(startDate, endDate) {
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  const diffInDays = (end - start) / (1000 * 60 * 60 * 24);
+  return diffInDays >= 0 && diffInDays <= 7;
+}
+
+function loadStoredData() {
+  const stored = localStorage.getItem(HISTORY_KEY);
+
+  if (!stored) {
+    updateMetrics([]);
+    return;
+  }
+
+  try {
+    const parsed = JSON.parse(stored);
+    state.asteroids = parsed.asteroids || [];
+    state.currentTitle = parsed.title || "Saved asteroid results";
+    renderAsteroidList(state.asteroids, state.currentTitle);
+  } catch {
+    localStorage.removeItem(HISTORY_KEY);
+    updateMetrics([]);
+  }
+}
+
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  state.asteroids = [];
+  state.currentTitle = "Ready to scan";
+  elements.neoContainer.innerHTML = "";
+  elements.neoContainer.style.display = "none";
+  elements.details.style.display = "none";
+  elements.empty.style.display = "grid";
+  updateTitle("Ready to scan");
+  updateStatus("Idle");
+  updateMetrics([]);
+  clearError();
+}
+
+function setLoading(isLoading, label = "Loading") {
+  elements.loading.style.display = isLoading ? "block" : "none";
+  elements.statusPill.textContent = isLoading ? label : "Ready";
+}
+
+function showError(message) {
+  elements.error.textContent = message;
+  elements.error.style.display = "block";
+}
+
+function clearError() {
+  elements.error.textContent = "";
+  elements.error.style.display = "none";
+}
+
+function updateTitle(title) {
+  elements.resultsTitle.textContent = title;
+}
+
+function updateStatus(status) {
+  elements.statusPill.textContent = status;
+}
+
+function formatDate(date) {
+  return date.toISOString().split("T")[0];
+}
+
+function formatReadableDate(value) {
+  if (!value) return "—";
+
+  return new Intl.DateTimeFormat("en", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatNumber(value, decimals = 2) {
+  const number = Number(value);
+
+  if (!Number.isFinite(number)) {
+    return "—";
+  }
+
+  return new Intl.NumberFormat("en", {
+    maximumFractionDigits: decimals,
+  }).format(number);
+}
+
+function formatDiameter(neo) {
+  const min = neo.estimated_diameter?.meters?.estimated_diameter_min;
+  const max = neo.estimated_diameter?.meters?.estimated_diameter_max;
+
+  if (!Number.isFinite(Number(min)) || !Number.isFinite(Number(max))) {
+    return "—";
+  }
+
+  return `${formatNumber(min, 1)}–${formatNumber(max, 1)} m`;
+}
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }

@@ -1,41 +1,188 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NASA NEOs</title>
-    <link rel="stylesheet" href="css/style.css">
-</head>
-<body>
-    <div id="app">
-        <h1>NASA Near Earth Objects</h1>
-        
-        <!-- Form to filter asteroids based on date range -->
-        <form id="date-form">
-            <label for="start-date">Start Date:</label>
-            <input type="date" id="start-date" name="start-date" required>
-            <label for="end-date">End Date:</label>
-            <input type="date" id="end-date" name="end-date" required>
-            <button type="submit">Fetch Asteroids</button>
-        </form>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="A NASA Near Earth Object dashboard for exploring asteroid close approaches by date range or asteroid ID."
+    />
+    <title>OrbitWatch | NASA Near Earth Objects</title>
+    <link rel="stylesheet" href="css/style.css" />
+  </head>
 
-        <!-- Form to look up an asteroid by its ID -->
-        <form id="id-form">
-            <label for="asteroid-id">Asteroid ID:</label>
-            <input type="text" id="asteroid-id" name="asteroid-id" required>
-            <button type="submit">Lookup Asteroid</button>
-        </form>
+  <body>
+    <div class="space-noise" aria-hidden="true"></div>
+    <div class="orbital-ring orbital-ring-one" aria-hidden="true"></div>
+    <div class="orbital-ring orbital-ring-two" aria-hidden="true"></div>
 
-        <!-- Button to clear history from localStorage -->
-        <button id="clear-history">Clear History</button>
+    <main class="app-shell">
+      <section class="hero-section" aria-labelledby="page-title">
+        <div class="hero-copy">
+          <p class="eyebrow">NASA Near Earth Object Explorer</p>
 
-        <!-- Containers for displaying error messages and asteroid data -->
-        <div id="error-container"></div>
-        <div id="neo-container"></div>
-        <div id="asteroid-details"></div>
-        
-    </div>
+          <h1 id="page-title">
+            Track close asteroid approaches with live NASA data.
+          </h1>
+
+          <p class="hero-text">
+            Search a date range, inspect asteroid details, and compare size,
+            speed, miss distance, and hazard status in a polished space dashboard.
+          </p>
+
+          <div class="hero-actions">
+            <a href="#search-panel" class="primary-link">Explore asteroids</a>
+            <button type="button" class="secondary-link" id="today-button">
+              Load today
+            </button>
+          </div>
+        </div>
+
+        <div class="hero-visual" aria-hidden="true">
+          <div class="planet-card">
+            <span class="planet-glow"></span>
+            <img src="img/asteroid.png" alt="" />
+          </div>
+
+          <div class="orbit-stat orbit-stat-one">
+            <strong id="hero-total">0</strong>
+            <span>objects loaded</span>
+          </div>
+
+          <div class="orbit-stat orbit-stat-two">
+            <strong id="hero-hazardous">0</strong>
+            <span>flagged hazardous</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="dashboard-grid" aria-label="Asteroid dashboard summary">
+        <article class="metric-card">
+          <span>Total objects</span>
+          <strong id="metric-total">—</strong>
+          <p>Near Earth Objects returned by the selected search.</p>
+        </article>
+
+        <article class="metric-card metric-danger">
+          <span>Potentially hazardous</span>
+          <strong id="metric-hazardous">—</strong>
+          <p>Objects NASA marks as potentially hazardous asteroids.</p>
+        </article>
+
+        <article class="metric-card">
+          <span>Closest miss distance</span>
+          <strong id="metric-closest">—</strong>
+          <p>Closest approach distance in kilometers.</p>
+        </article>
+
+        <article class="metric-card">
+          <span>Fastest velocity</span>
+          <strong id="metric-fastest">—</strong>
+          <p>Highest relative speed from the loaded results.</p>
+        </article>
+      </section>
+
+      <section class="search-layout" id="search-panel">
+        <aside class="control-panel" aria-label="Search controls">
+          <div class="panel-heading">
+            <p class="eyebrow">Search controls</p>
+            <h2>Choose your scan</h2>
+            <p>
+              NASA&apos;s feed works best with short date ranges, so this app keeps
+              searches within 7 days.
+            </p>
+          </div>
+
+          <form id="date-form" class="search-card">
+            <h3>Date range search</h3>
+
+            <label for="start-date">Start date</label>
+            <input type="date" id="start-date" name="start-date" required />
+
+            <label for="end-date">End date</label>
+            <input type="date" id="end-date" name="end-date" required />
+
+            <div class="quick-actions" aria-label="Quick date filters">
+              <button type="button" class="chip-button" data-range="today">
+                Today
+              </button>
+              <button type="button" class="chip-button" data-range="week">
+                Next 7 days
+              </button>
+            </div>
+
+            <button type="submit" class="submit-button">Fetch asteroids</button>
+          </form>
+
+          <form id="id-form" class="search-card">
+            <h3>Lookup by asteroid ID</h3>
+
+            <label for="asteroid-id">Asteroid ID</label>
+            <input
+              type="text"
+              id="asteroid-id"
+              name="asteroid-id"
+              placeholder="Example: 3542519"
+              autocomplete="off"
+              required
+            />
+
+            <button type="submit" class="submit-button">Lookup asteroid</button>
+          </form>
+
+          <details class="api-settings">
+            <summary>API key settings</summary>
+            <p>
+              The demo uses NASA&apos;s public demo key by default. Add your own key
+              here if you want to save it locally in this browser.
+            </p>
+            <label for="api-key">NASA API key</label>
+            <input id="api-key" type="password" placeholder="Optional API key" />
+            <div class="settings-actions">
+              <button type="button" id="save-api-key" class="secondary-button">
+                Save key
+              </button>
+              <button type="button" id="clear-api-key" class="ghost-button">
+                Clear key
+              </button>
+            </div>
+          </details>
+
+          <button type="button" id="clear-history" class="ghost-button full-width">
+            Clear saved results
+          </button>
+        </aside>
+
+        <section class="results-panel" aria-live="polite">
+          <div class="results-toolbar">
+            <div>
+              <p class="eyebrow">Results</p>
+              <h2 id="results-title">Ready to scan</h2>
+            </div>
+
+            <div class="status-pill" id="status-pill">Idle</div>
+          </div>
+
+          <div id="error-container" class="message error-message" role="alert"></div>
+          <div id="loading-container" class="message loading-message">
+            Scanning NASA data…
+          </div>
+
+          <div id="empty-state" class="empty-state">
+            <span>☄️</span>
+            <h3>No asteroids loaded yet</h3>
+            <p>
+              Pick a date range or search by asteroid ID to start exploring the
+              dashboard.
+            </p>
+          </div>
+
+          <div id="neo-container" class="neo-grid"></div>
+          <article id="asteroid-details" class="details-panel"></article>
+        </section>
+      </section>
+    </main>
 
     <script src="js/main.js"></script>
-</body>
+  </body>
 </html>
