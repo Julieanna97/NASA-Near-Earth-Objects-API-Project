@@ -1,6 +1,6 @@
-# OrbitWatch — NASA Near Earth Object Explorer
+# AsteroidWatch — NASA Near Earth Object Explorer
 
-OrbitWatch is a redesigned NASA Near Earth Object dashboard built with HTML, CSS, and vanilla JavaScript. It uses NASA's Near Earth Object API to help users explore asteroid close approaches by date range or asteroid ID.
+AsteroidWatch is a redesigned NASA Near Earth Object dashboard built with HTML, CSS, and vanilla JavaScript. It uses NASA's Near Earth Object API to help users explore asteroid close approaches by date range or asteroid ID.
 
 ## Live Features
 
