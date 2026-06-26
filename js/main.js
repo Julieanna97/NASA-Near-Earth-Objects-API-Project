@@ -43,8 +43,6 @@ function bindEvents() {
   elements.idForm.addEventListener("submit", handleIdSearch);
   elements.todayButton.addEventListener("click", loadToday);
   elements.clearHistory.addEventListener("click", clearHistory);
-  elements.saveApiKey.addEventListener("click", saveApiKey);
-  elements.clearApiKey.addEventListener("click", clearApiKey);
 
   document.querySelectorAll("[data-range]").forEach((button) => {
     button.addEventListener("click", () => setDateRange(button.dataset.range));
@@ -178,45 +176,55 @@ function renderAsteroidList(asteroids, title) {
   updateStatus(`${asteroids.length} loaded`);
   updateMetrics(asteroids);
 
-  asteroids.forEach((neo) => {
+  asteroids.forEach((neo, index) => {
     const approach = getPrimaryApproach(neo);
-    const card = document.createElement("article");
-    card.className = "neo-card";
+    const isHazardous = neo.is_potentially_hazardous_asteroid;
 
-    card.innerHTML = `
-      <div class="card-topline">
+    const row = document.createElement("article");
+    row.className = `neo-row ${isHazardous ? "neo-row-alert" : ""}`;
+
+    row.innerHTML = `
+      <div class="object-main">
+        <span class="object-index">${String(index + 1).padStart(2, "0")}</span>
+
         <div>
           <h3>${escapeHtml(neo.name)}</h3>
-          <p class="neo-id">ID ${escapeHtml(neo.id)}</p>
+          <p class="neo-id">NASA object ID ${escapeHtml(neo.id)}</p>
         </div>
-        <span class="badge ${neo.is_potentially_hazardous_asteroid ? "badge-hazard" : "badge-safe"}">
-          ${neo.is_potentially_hazardous_asteroid ? "Hazard" : "Safe"}
-        </span>
       </div>
 
-      <div class="card-stats">
-        <div class="card-stat">
+      <div class="object-data">
+        <div>
           <span>Diameter</span>
           <strong>${formatDiameter(neo)}</strong>
         </div>
-        <div class="card-stat">
+
+        <div>
           <span>Approach</span>
           <strong>${approach ? formatReadableDate(approach.close_approach_date) : "—"}</strong>
         </div>
-        <div class="card-stat">
+
+        <div>
           <span>Miss distance</span>
           <strong>${approach ? formatNumber(approach.miss_distance.kilometers, 0) + " km" : "—"}</strong>
         </div>
-        <div class="card-stat">
+
+        <div>
           <span>Velocity</span>
           <strong>${approach ? formatNumber(approach.relative_velocity.kilometers_per_hour, 0) + " km/h" : "—"}</strong>
         </div>
       </div>
 
-      <button type="button" class="details-button">View details</button>
+      <div class="object-status">
+        <span class="badge ${isHazardous ? "badge-hazard" : "badge-safe"}">
+          ${isHazardous ? "Hazard" : "Clear"}
+        </span>
+
+        <button type="button" class="details-button">Details</button>
+      </div>
     `;
 
-    card.querySelector(".details-button").addEventListener("click", async () => {
+    row.querySelector(".details-button").addEventListener("click", async () => {
       try {
         setLoading(true, "Loading details");
         const detailedNeo = await fetchAsteroidById(neo.id);
@@ -228,7 +236,7 @@ function renderAsteroidList(asteroids, title) {
       }
     });
 
-    elements.neoContainer.appendChild(card);
+    elements.neoContainer.appendChild(row);
   });
 }
 
